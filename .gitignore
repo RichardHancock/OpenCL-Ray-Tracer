@@ -193,3 +193,5 @@ ModelManifest.xml
 /*.db
 /Tools/DoxgenLog.txt
 /Tools/Makefile
+
+*.png
