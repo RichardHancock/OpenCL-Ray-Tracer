@@ -3,10 +3,13 @@
 #include <iostream>
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+
 #include "lodepng.h"
 
 #include "Ray.h"
 #include "Triangle.h"
+#include "Sphere.h"
+#include "clew.h"
 
 //Macros
 // Ref: http://cs.lth.se/tomas_akenine-moller
@@ -32,6 +35,42 @@ Triangle tri;
 
 int main(int argc, char * argv[])
 {
+	bool clpresent = 0 == clewInit();
+	if (!clpresent) {
+		throw std::runtime_error("OpenCL library not found");
+	}
+
+
+	cl_int error = 0;
+	cl_platform_id platform_ids[10];
+	cl_uint num_platforms;
+	error = clGetPlatformIDs(10, platform_ids, &num_platforms);
+	if (error != CL_SUCCESS) {
+		std::cout << "something went wrong, errorcode " << error << std::endl;
+		return -1;
+	}
+	std::cout << "num platforms: " << num_platforms << std::endl;
+
+
+
+	for (int i = 0; i < 3; i++)
+	{
+		char words[1000];
+		clGetPlatformInfo(platform_ids[i], CL_PLATFORM_NAME, 1000, words, NULL);
+		std::cout << words << std::endl;
+		clGetPlatformInfo(platform_ids[i], CL_PLATFORM_VERSION, 1000, words, NULL);
+		std::cout << words << std::endl;
+		clGetPlatformInfo(platform_ids[i], CL_PLATFORM_PROFILE, 1000, words, NULL);
+		std::cout << words << std::endl;
+		clGetPlatformInfo(platform_ids[i], CL_PLATFORM_VENDOR, 1000, words, NULL);
+		std::cout << words << std::endl << std::endl;
+		clGetPlatformInfo(platform_ids[i], CL_PLATFORM_EXTENSIONS, 1000, words, NULL);
+		std::cout << words << std::endl << std::endl;
+	}
+
+	system("pause");
+
+
 	//Create Tri
 	tri.a = glm::vec3(150, 0, 0);
 	tri.b = glm::vec3(0, 300, 0);
@@ -41,21 +80,61 @@ int main(int argc, char * argv[])
 	//Dimensions * 4 Bytes (RGBA)
 	pixels.reserve((300 * 300) * 4);
 
-	glm::mat4 proj = glm::ortho(0.0f, 300.0f, 300.0f, 0.0f, 0.0f, 1000.0f);
-
+	//glm::mat4 proj = glm::ortho(0.0f, 300.0f, 300.0f, 0.0f, 0.0f, 1000.0f);
+	glm::mat4 proj = glm::perspective(45.0f, 1.0f, 0.0f, 100.0f);
+	Sphere s;
+	s.radius = 50;
+	s.origin = glm::vec4(75.0f, 75.0f, 0, 1);
 
 	for (unsigned int y = 0; y < 300; y++)
 	{
 		for (unsigned int x = 0; x < 300; x++)
 		{
+			int result = 1;
+
 			Ray ray;
 			ray.origin = glm::vec4(x, y, 0, 1);
 			ray.direction = proj * glm::vec4(0, 0, 1, 1);
+			//ray.direction = glm::vec4(0, 0, 1, 1);
 
-			int result = collide(ray);
+			//ray.direction = glm::vec4(glm::unProject(glm::vec3(ray.direction), glm::mat4(1.0f), proj, glm::vec4(0.0f, 0.0f, 300.0f, 300.0f)), 1.0f);
+
+			//std::cout << "Ray:" << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << ", " << ray.direction.w << std::endl;
+
+			do {
+				glm::vec4 L = s.origin - ray.origin;
+				float tca = glm::dot(L, ray.direction);
+
+				if (tca < 0)
+				{
+					result = 0;
+					break;
+				}
+
+				float distanceSquared = glm::dot(L, L) - tca * tca;
+				if (distanceSquared > s.radius * s.radius)
+				{
+					result = 0;
+					break;
+				}
+
+				float thc = sqrt((s.radius * s.radius) - distanceSquared);
+				float t0 = tca - thc;
+				float t1 = tca + thc;
+
+				float distance = glm::distance(t0, t1);
+
+				//std::cout << distance << std::endl;
+				result = distance + 25.0f;
+
+
+			} while (0);
+			//int result = collide(ray);
 
 			//if Result equal 1 set red channel to max
-			pixels.push_back(result == 1 ? 255 : 0);
+			//pixels.push_back(result == 1 ? 255 : 0);
+			
+			pixels.push_back(result);
 			pixels.push_back(0);
 			pixels.push_back(0);
 			pixels.push_back(255);
