@@ -1,0 +1,7 @@
+<resolution width="1280" height="720" />
+
+<!-- 0 - Windowed, 1 - Fullscreen, 2 - Borderless -->
+<fullscreen>0</fullscreen>
+
+<!-- 0 - 16 -->
+<MSAA>16</MSAA>
