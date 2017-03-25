@@ -3,6 +3,7 @@
 #include <fstream>
 #include "../glm/glm.hpp"
 #include "../glm/gtc/matrix_transform.hpp"
+#include "../glm/gtc/type_ptr.hpp"
 
 #include "../lodepng.h"
 #include "../Sphere.h"
@@ -99,11 +100,12 @@ MainState::MainState(StateManager * manager, Platform * platform)
 			std::cout << " -- Max Clock Frequency: " << uInt << "MHz" << std::endl << std::endl;
 		}
 
-		deviceID = devices[0];
+		if (platformIndex == 0)
+			deviceID = devices[0];
 
 	}
 
-	cl_context context = clCreateContext(NULL, 1, &deviceID, NULL, NULL, &error);
+	context = clCreateContext(NULL, 1, &deviceID, NULL, NULL, &error);
 
 	if (context == NULL)
 	{
@@ -111,7 +113,7 @@ MainState::MainState(StateManager * manager, Platform * platform)
 		//return -1;
 	}
 
-	cl_command_queue cmdQueue = clCreateCommandQueue(context, deviceID, NULL, &error);
+	cmdQueue = clCreateCommandQueue(context, deviceID, NULL, &error);
 	if (cmdQueue == NULL)
 	{
 		std::cout << "OpenCL could not create a command queue, errorcode: " << error << std::endl;
@@ -123,7 +125,7 @@ MainState::MainState(StateManager * manager, Platform * platform)
 
 	//std::cout << shaderRaw << std::endl;
 
-	cl_program program = clCreateProgramWithSource(context, 1, &shader, NULL, &error);
+	program = clCreateProgramWithSource(context, 1, &shader, NULL, &error);
 	if (program == NULL)
 	{
 		std::cout << "OpenCL could not create a program, errorcode: " << error << std::endl;
@@ -148,12 +150,26 @@ MainState::MainState(StateManager * manager, Platform * platform)
 		//return -1;
 	}
 
-	cl_kernel kernel = clCreateKernel(program, "main", &error);
-	if (program == NULL)
+	kernel = clCreateKernel(program, "rayTracer", &error);
+	if (kernel == NULL)
 	{
 		std::cout << "OpenCL could not create a kernel, errorcode: " << error << std::endl;
 		//return -1;
 	}
+
+
+	//Send in Array of ray origins and Di331
+	//cl_uchar
+	//size_t outputSize = (sizeof(cl_uchar) * 4) * (platform->getWindowSize().x * platform->getWindowSize().y);
+
+	//cl_mem outputBuffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY, outputSize, NULL, &error);
+	/*if (outputBuffer == NULL)
+	{
+		std::cout << "OpenCL could not create the out buffer, errorcode: " << error << std::endl;
+	}*/
+
+	//cl_mem 
+
 
 	//Create Tri
 	tri.a = glm::vec3(150, 0, 0);
@@ -219,9 +235,179 @@ void MainState::update()
 		//glm::mat4 proj = glm::ortho(0.0f, 300.0f, 300.0f, 0.0f, 0.0f, 1000.0f);
 		glm::mat4 proj = glm::perspective(45.0f, 16.0f / 9.0f, 0.0f, 100.0f);
 		Sphere s;
-		s.radius = 300;
-		s.origin = glm::vec4(500.0f, 300.0f, 0, 1);
+		s.radius = 50;
+		s.origin = glm::vec4(50.0f, 50.0f, -50.0f, 1);
 
+		glm::vec4 rayDir = proj * glm::vec4(0, 0, 1, 1);
+
+		int pixelCount = (platform->getWindowSize().x * platform->getWindowSize().y);
+
+		std::vector<glm::vec4> rayOrigins;
+		rayOrigins.reserve(pixelCount * 4);
+
+		for (unsigned int y = 0; y < platform->getWindowSize().y; y++)
+		{
+			for (unsigned int x = 0; x < platform->getWindowSize().x; x++)
+			{
+				rayOrigins.push_back(glm::vec4(x, y, 0.0f, 1.0f));
+			}
+		}
+
+
+		std::vector<glm::vec4> sphereOrigins;
+		sphereOrigins.reserve(1);
+		sphereOrigins.push_back(glm::vec4(50.0f, 50.0f, -50.0f, 1));
+		
+		std::vector<float> sphereRadius;
+		sphereRadius.reserve(1);
+		sphereRadius.push_back(50);
+
+
+		//OpenCL
+		cl_int errorCode;
+
+		cl_mem outputBuffer = clCreateBuffer(
+			context,
+			CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY,
+			(sizeof(int) * 4) * pixelCount,
+			NULL, &errorCode);
+
+		if (outputBuffer == NULL)
+		{
+			std::cout << "OpenCL could not create the output buffer, errorcode: " << errorCode << std::endl;
+		}
+
+
+		cl_mem sphereOriginsBuffer = clCreateBuffer(
+			context,
+			CL_MEM_READ_ONLY,
+			sizeof(glm::vec4) * sphereOrigins.size(),
+			NULL, &errorCode
+		);
+		if (sphereOriginsBuffer == NULL)
+		{
+			std::cout << "OpenCL could not create the sphere origins buffer, errorcode: " << errorCode << std::endl;
+		}
+		
+		cl_mem sphereRadiusBuffer = clCreateBuffer(
+			context,
+			CL_MEM_READ_ONLY,
+			sizeof(float) * sphereRadius.size(),
+			NULL, &errorCode
+		);
+		if (sphereRadiusBuffer == NULL)
+		{
+			std::cout << "OpenCL could not create the sphere radius buffer, errorcode: " << errorCode << std::endl;
+		}
+
+
+		cl_mem rayOriginsBuffer = clCreateBuffer(
+			context,
+			CL_MEM_READ_ONLY,
+			sizeof(glm::vec4) * pixelCount,
+			NULL, &errorCode
+		);
+		if (rayOriginsBuffer == NULL)
+		{
+			std::cout << "OpenCL could not create the ray origins buffer, errorcode: " << errorCode << std::endl;
+		}
+		
+		//Setting Kernel Args
+		clSetKernelArg(kernel, 0, sizeof(outputBuffer), (void*) &outputBuffer);
+		clSetKernelArg(kernel, 1, sizeof(sphereOriginsBuffer), (void*) &sphereOriginsBuffer);
+		clSetKernelArg(kernel, 2, sizeof(sphereRadiusBuffer), (void*) &sphereRadiusBuffer);
+		clSetKernelArg(kernel, 3, sizeof(rayOriginsBuffer), (void*) &rayOriginsBuffer);
+		clSetKernelArg(kernel, 4, sizeof(glm::vec4), (void*) &rayDir);
+
+		//Passing Data to Buffers
+		errorCode = clEnqueueWriteBuffer(
+			cmdQueue,
+			sphereOriginsBuffer,
+			CL_TRUE,
+			0,
+			sizeof(glm::vec4) * sphereOrigins.size(),
+			&sphereOrigins[0],
+			0,
+			NULL,
+			NULL
+			);
+		if (errorCode != CL_SUCCESS)
+		{
+			std::cout << "OpenCL could not write to the sphereOriginsBuffer, errorcode: " << errorCode << std::endl;
+		}
+
+		errorCode = clEnqueueWriteBuffer(
+			cmdQueue,
+			sphereRadiusBuffer,
+			CL_TRUE,
+			0,
+			sizeof(float) * sphereRadius.size(),
+			&sphereRadius[0],
+			0,
+			NULL,
+			NULL
+		);
+		if (errorCode != CL_SUCCESS)
+		{
+			std::cout << "OpenCL could not write to the sphereRadiusBuffer, errorcode: " << errorCode << std::endl;
+		}
+		
+		errorCode = clEnqueueWriteBuffer(
+			cmdQueue,
+			rayOriginsBuffer,
+			CL_TRUE,
+			0,
+			sizeof(glm::vec4) * pixelCount,
+			&rayOrigins[0],
+			0,
+			NULL,
+			NULL
+		);
+		if (errorCode != CL_SUCCESS)
+		{
+			std::cout << "OpenCL could not write to the rayOriginsBuffer, errorcode: " << errorCode << std::endl;
+		}
+
+		//Start the Parallel processing
+		size_t globalWorkSize = pixelCount;
+		errorCode = clEnqueueNDRangeKernel(
+			cmdQueue,
+			kernel,
+			1,
+			NULL,
+			&globalWorkSize,
+			NULL,
+			0,
+			NULL,
+			NULL
+		);
+		if (errorCode != CL_SUCCESS)
+		{
+			std::cout << "OpenCL could not enqueue a execute kernel command, errorcode: " << errorCode << std::endl;
+		}
+
+		//Retrieve results of the processing (Will block execution until returned)
+		int *ptr = (int*)clEnqueueMapBuffer(
+			cmdQueue,
+			outputBuffer,
+			CL_TRUE,
+			CL_MAP_READ,
+			0,
+			(sizeof(int) * 4) * pixelCount,
+			0, 
+			NULL,
+			NULL,
+			&errorCode);
+		if (errorCode != CL_SUCCESS)
+		{
+			std::cout << "OpenCL could not enqueue a execute kernel command, errorcode: " << errorCode << std::endl;
+		}
+
+		pixels.assign(ptr, ptr + (pixelCount * 4));
+		
+		std::cout << "";
+
+		/*
 		for (unsigned int y = 0; y < platform->getWindowSize().y; y++)
 		{
 			for (unsigned int x = 0; x < platform->getWindowSize().x; x++)
@@ -287,11 +473,12 @@ void MainState::update()
 			}
 			//New line for each row
 			//std::cout << std::endl;
-		}
+		}*/
 
 
-		encodePNG("ray.png", pixels, platform->getWindowSize().x, platform->getWindowSize().y);
+		//encodePNG("ray.png", pixels, platform->getWindowSize().x, platform->getWindowSize().y);
 	}
+	
 }
 
 void MainState::render()

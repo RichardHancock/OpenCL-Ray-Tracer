@@ -34,9 +34,15 @@ public:
 protected:
 
 	Triangle tri;
-	std::vector<unsigned char> pixels;
+	std::vector<int> pixels;
 
 	Texture* result;
+
+	//OpenCL
+	cl_program program;
+	cl_context context;
+	cl_command_queue cmdQueue;
+	cl_kernel kernel;
 
 	std::string loadComputeShaderFromFile(std::string path);
 
