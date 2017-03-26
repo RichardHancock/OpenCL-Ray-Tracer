@@ -1,11 +1,11 @@
 #pragma once
 
+#include <vector>
 #include "glm/glm.hpp"
 
-class Sphere
+struct Spheres
 {
-public:
-	glm::vec4 origin;
-
-	int radius;
+	std::vector<glm::vec4> origins;
+	std::vector<float> radius;
+	std::vector<glm::vec4> colours;
 };

@@ -1,24 +1,14 @@
-#include <vector>
-#include <math.h>
-#include <iostream>
-#include <fstream>
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
 #include <SDL.h>
-#include "lodepng.h"
-#include "clew.h"
 
 #include "Platform.h"
 #include "misc/Utility.h"
 #include "misc/Random.h"
 #include "misc/Log.h"
-#include "Ray.h"
-#include "Triangle.h"
-#include "Sphere.h"
 #include "input/InputManager.h"
 #include "misc/DeltaTime.h"
 #include "states/StateManager.h"
 #include "states/MainState.h"
+#include "misc/PerformanceCounter.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -50,6 +40,8 @@ int main(int, char**)
 
 	Random::init();
 	DeltaTime::init();
+	PerformanceCounter::initSubsystem();
+
 
 	SDL_Renderer* renderer = platform->getRenderer();
 	SDL_RenderSetLogicalSize(renderer, 640, 480);

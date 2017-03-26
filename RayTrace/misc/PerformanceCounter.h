@@ -9,7 +9,7 @@
 
 /**
 @brief	A class that provides high accuracy timers for profiling a program 
-	I've decided to use Window's peformance counters as C++ chrono is not
+	I've decided to use Window's performance counters as C++ chrono is not
 	fully working in < VS 2015. and internally chrono just calls these functions anyway.
 
 @todo Implement other platforms using std::chrono
