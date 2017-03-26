@@ -26,7 +26,7 @@
 MainState::MainState(StateManager * manager, Platform * platform)
 	: State(manager, platform)
 {
-	result = nullptr;
+	image = nullptr;
 
 	stateName = "Main State";
 
@@ -177,7 +177,7 @@ MainState::MainState(StateManager * manager, Platform * platform)
 	tri.c = glm::vec3(300, 300, 0);
 
 	//Dimensions * 4 Bytes (RGBA)
-	pixels.reserve((platform->getWindowSize().x * platform->getWindowSize().y) * 4);
+	pixels.reserve((int)(platform->getWindowSize().x * platform->getWindowSize().y) * 4);
 
 
 }
@@ -230,17 +230,17 @@ bool MainState::eventHandler()
 
 void MainState::update()
 {
-	if (result == nullptr)
+	if (image == nullptr)
 	{
 		//glm::mat4 proj = glm::ortho(0.0f, 300.0f, 300.0f, 0.0f, 0.0f, 1000.0f);
 		glm::mat4 proj = glm::perspective(45.0f, 16.0f / 9.0f, 0.0f, 100.0f);
-		Sphere s;
-		s.radius = 50;
-		s.origin = glm::vec4(50.0f, 50.0f, -50.0f, 1);
+		//Sphere s;
+		//s.radius = 50;
+		//s.origin = glm::vec4(50.0f, 50.0f, -50.0f, 1);
 
 		glm::vec4 rayDir = proj * glm::vec4(0, 0, 1, 1);
 
-		int pixelCount = (platform->getWindowSize().x * platform->getWindowSize().y);
+		int pixelCount = (int)(platform->getWindowSize().x * platform->getWindowSize().y);
 
 		std::vector<glm::vec4> rayOrigins;
 		rayOrigins.reserve(pixelCount * 4);
@@ -256,13 +256,33 @@ void MainState::update()
 
 		std::vector<glm::vec4> sphereOrigins;
 		sphereOrigins.reserve(1);
-		sphereOrigins.push_back(glm::vec4(50.0f, 50.0f, -50.0f, 1));
+		sphereOrigins.push_back(glm::vec4(300.0f, 250.0f, -85.0f, 1));
 		
 		std::vector<float> sphereRadius;
 		sphereRadius.reserve(1);
 		sphereRadius.push_back(50);
 
+		std::vector<glm::vec3> sphereColours;
+		sphereColours.reserve(1);
+		sphereColours.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
 
+		std::vector<Cube> cubes;
+		Cube cube1(glm::vec3(1.0f, 0.0f, 1.0f));
+		cube1.scale(glm::vec3(40.0f));
+		cube1.rotate(glm::vec3(0.0f, 0.0f, Utility::convertAngleToRadian(30.0f)));
+		cube1.rotate(glm::vec3(0.0f, Utility::convertAngleToRadian(30.0f), 0.0f));
+		cube1.translate(glm::vec3(70.0f, 60.0f, -60.0f));
+		cubes.push_back(cube1);
+
+		Cube cube2(glm::vec3(1.0f, 1.0f, 0.0f));
+		cube2.scale(glm::vec3(30.0f));
+		cube2.rotate(glm::vec3(0.0f, 0.0f, Utility::convertAngleToRadian(80.0f)));
+		cube2.rotate(glm::vec3(0.0f, Utility::convertAngleToRadian(250.0f), 0.0f));
+		cube2.translate(glm::vec3(150.0f, 60.0f, -60.0f));
+		cubes.push_back(cube2);
+		
+
+		/*
 		//OpenCL
 		cl_int errorCode;
 
@@ -404,78 +424,36 @@ void MainState::update()
 		}
 
 		pixels.assign(ptr, ptr + (pixelCount * 4));
+		*/
 		
-		std::cout << "";
-
-		/*
 		for (unsigned int y = 0; y < platform->getWindowSize().y; y++)
 		{
 			for (unsigned int x = 0; x < platform->getWindowSize().x; x++)
 			{
-				int result = 1;
+				glm::vec4 resultColour = glm::vec4(0.0f, 0.0f, 0.0f, 255.0f);
 
 				Ray ray;
 				ray.origin = glm::vec4(x, y, 0, 1);
 				ray.direction = proj * glm::vec4(0, 0, 1, 1);
 				//ray.direction = glm::vec4(0, 0, 1, 1);
-
 				//ray.direction = glm::vec4(glm::unProject(glm::vec3(ray.direction), glm::mat4(1.0f), proj, glm::vec4(0.0f, 0.0f, 300.0f, 300.0f)), 1.0f);
+				
+				resultColour = collide(ray, cubes, sphereRadius, sphereOrigins, sphereColours);
 
-				//std::cout << "Ray:" << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << ", " << ray.direction.w << std::endl;
-
-				do {
-					glm::vec4 L = s.origin - ray.origin;
-					float tca = glm::dot(L, ray.direction);
-
-					if (tca < 0)
-					{
-						result = 0;
-						break;
-					}
-
-					float distanceSquared = glm::dot(L, L) - tca * tca;
-					if (distanceSquared > s.radius * s.radius)
-					{
-						result = 0;
-						break;
-					}
-
-					float thc = sqrt((s.radius * s.radius) - distanceSquared);
-					float t0 = tca - thc;
-					float t1 = tca + thc;
-
-					float distance = glm::distance(t0, t1);
-
-					
-
-					distance = Utility::normaliseFloat(distance, s.radius + s.radius, 0.0f) * 255.0f;
-
-					result = (int)(distance);
-
-				} while (0);
-				//int result = collide(ray);
-
-				//if Result equal 1 set red channel to max
-				//pixels.push_back(result == 1 ? 255 : 0);
-
+				/*
 				if (result < 0)
 				{
 					result = 0;
 				}
-
-				pixels.push_back((unsigned char)result);
-				pixels.push_back(0);
-				pixels.push_back(0);
-				pixels.push_back(255);
-
-				//Also print to console
-				//std::cout << result;
+				*/
+				pixels.push_back((unsigned char)resultColour.r);
+				pixels.push_back((unsigned char)resultColour.g);
+				pixels.push_back((unsigned char)resultColour.b);
+				pixels.push_back((unsigned char)resultColour.a);
 			}
-			//New line for each row
-			//std::cout << std::endl;
-		}*/
+		}
 
-
+		std::cout << "CPU Ray Trace Finished (Timer Stopped), Converting data to pixels";
 		//encodePNG("ray.png", pixels, platform->getWindowSize().x, platform->getWindowSize().y);
 	}
 	
@@ -483,7 +461,7 @@ void MainState::update()
 
 void MainState::render()
 {
-	if (result == nullptr)
+	if (image == nullptr)
 	{
 		std::vector<SDL_Colour> pixelColours;
 		pixelColours.reserve(pixels.size() / 4);
@@ -507,7 +485,7 @@ void MainState::render()
 		amask = 0xff000000;
 #endif
 
-		surface = SDL_CreateRGBSurface(0, platform->getWindowSize().x, platform->getWindowSize().y, 32,
+		surface = SDL_CreateRGBSurface(0, (int)platform->getWindowSize().x, (int)platform->getWindowSize().y, 32,
 			rmask, gmask, bmask, amask);
 
 		if (surface == NULL) {
@@ -524,14 +502,6 @@ void MainState::render()
 		{
 			for (unsigned int x = 0; x < platform->getWindowSize().x; x++)
 			{
-				/*
-				SDL_SetRenderDrawColor(platform->getRenderer(),
-					pixelColours[x * (y + 1)].r,
-					pixelColours[x * (y + 1)].g,
-					pixelColours[x * (y + 1)].b,
-					pixelColours[x * (y + 1)].a
-				);*/
-
 				SDL_Rect rect;
 
 				rect.h = rect.w = 1;
@@ -539,24 +509,23 @@ void MainState::render()
 				rect.y = y;
 
 				rects.push_back(rect);
-				
 			}
 		}
 
 		for (unsigned int pixelIndex = 0; pixelIndex < pixels.size(); pixelIndex += 4)
 		{
 			SDL_Colour colour;
-			colour.r = pixels[pixelIndex];
-			colour.g = pixels[pixelIndex + 1];
-			colour.b = pixels[pixelIndex + 2];
-			colour.a = pixels[pixelIndex + 3];
+			colour.r = (uint8_t) pixels[pixelIndex];
+			colour.g = (uint8_t) pixels[pixelIndex + 1];
+			colour.b = (uint8_t) pixels[pixelIndex + 2];
+			colour.a = (uint8_t) pixels[pixelIndex + 3];
 
 			pixelColours.push_back(colour);
 
 			SDL_FillRect(surface, &rects[pixelIndex / 4], SDL_MapRGB(surface->format,
-				pixels[pixelIndex],
-				pixels[pixelIndex + 1],
-				pixels[pixelIndex + 2])
+				(uint8_t) pixels[pixelIndex],
+				(uint8_t) pixels[pixelIndex + 1],
+				(uint8_t) pixels[pixelIndex + 2])
 			);
 		}
 
@@ -564,11 +533,11 @@ void MainState::render()
 
 		pixels.clear();
 
-		result = new Texture(surface, platform->getRenderer());
+		image = new Texture(surface, platform->getRenderer());
 	}
 
-	if (result != nullptr)
-		result->draw(Vec2(0.0f));
+	if (image != nullptr)
+		image->draw(Vec2(0.0f));
 }
 
 //Ref: http://cs.lth.se/tomas_akenine-moller
@@ -615,27 +584,116 @@ int MainState::intersectTri(double orig[3], double dir[3],
 	return 1;
 }
 
+float MainState::intersectSphere(glm::vec4& rayOrigin, glm::vec4& rayDir, float sphereRadius, glm::vec4& sphereOrigin)
+{
+		glm::vec4 L = sphereOrigin - rayOrigin;
+		float tca = glm::dot(L, rayDir);
+
+		if (tca < 0)
+		{
+			return 0.0f;
+		}
+
+		float distanceSquared = glm::dot(L, L) - tca * tca;
+		float radiusSquared = sphereRadius * sphereRadius;
+
+		if (distanceSquared > radiusSquared)
+		{
+			return 0.0f;
+		}
+
+		float thc = sqrt((radiusSquared) - distanceSquared);
+		float t0 = tca - thc;
+		float t1 = tca + thc;
+
+		//return glm::distance(t0, t1);
+		return t0;
+
+
+		//distance = Utility::normaliseFloat(distance, s.radius + s.radius, 0.0f) * 255.0f;
+}
+
 //Quick function to convert params to be suitable for the intersect code
-int MainState::collide(Ray& ray)
+glm::vec4 MainState::collide(Ray& ray, std::vector<Cube> cubes, 
+	std::vector<float> sphereRadius, std::vector<glm::vec4> sphereOrigins, std::vector<glm::vec3> sphereColours)
 {
 	double rayOrigin[3]{ ray.origin.x, ray.origin.y, ray.origin.z };
 	double rayDir[3]{ ray.direction.x, ray.direction.y, ray.direction.z };
 
-	double tri0[3]{ tri.a.x, tri.a.y, tri.a.z };
-	double tri1[3]{ tri.b.x, tri.b.y, tri.b.z };
-	double tri2[3]{ tri.c.x, tri.c.y, tri.c.z };
+	double tri0[3];
+	double tri1[3];
+	double tri2[3];
 
 	double t = 0;
 	double u = 0;
 	double v = 0;
 
-	return intersectTri(rayOrigin, rayDir, tri0, tri1, tri2, &t, &u, &v);
+	glm::vec3 closestColour = glm::vec3(0, 0, 0);
+	float closest = 300000.0f; //Set to high number so it will always be beaten
+
+	//Process Cubes
+	for (auto cube : cubes)
+	{
+		std::vector<glm::vec4> tris = cube.getTriangles();
+
+		for (unsigned int triIndex = 0; triIndex < tris.size(); triIndex += 3)
+		{
+			tri0[0] = tris[triIndex].x;
+			tri0[1] = tris[triIndex].y;
+			tri0[2] = tris[triIndex].z;
+
+			tri1[0] = tris[triIndex + 1].x;
+			tri1[1] = tris[triIndex + 1].y;
+			tri1[2] = tris[triIndex + 1].z;
+
+			tri2[0] = tris[triIndex + 2].x;
+			tri2[1] = tris[triIndex + 2].y;
+			tri2[2] = tris[triIndex + 2].z;
+
+			if (intersectTri(rayOrigin, rayDir, tri0, tri1, tri2, &t, &u, &v) == 1)
+			{
+				if ((float)t < closest)
+				{
+					closest = (float)t;
+					closestColour = cube.getColour();
+				}
+			}
+		}
+	}
+
+	//Process Spheres
+	assert(sphereOrigins.size() == sphereRadius.size());
+
+	for (unsigned int sphereIndex = 0; sphereIndex < sphereOrigins.size(); sphereIndex++)
+	{
+		float distance = intersectSphere(ray.origin, ray.direction, sphereRadius[sphereIndex], sphereOrigins[sphereIndex]);
+		
+		if (distance == 0.0f)
+			continue;
+
+		if (distance < closest)
+		{
+			closest = distance;
+			closestColour = sphereColours[sphereIndex];
+		}
+	}
+
+	//Check any object is closer than the default setting, if not return black colour as no intersects occurred
+	if (closest == 300000.0f)
+	{
+		return glm::vec4(closestColour, 255.0f);
+	}
+	else
+	{
+		float colourScalar = 255.0f - (Utility::normaliseFloat(closest, 150.0f, 0.0f) * 255.0f);
+		return glm::vec4(colourScalar * closestColour, 255.0f);
+	}
 }
 
-void MainState::encodePNG(const char* filename, std::vector<unsigned char>& image, unsigned width, unsigned height)
+void MainState::encodePNG(const char* filename, std::vector<unsigned char>& imageData, unsigned width, unsigned height)
 {
 	//Encode the image
-	unsigned error = lodepng::encode(filename, image, width, height);
+	unsigned error = lodepng::encode(filename, imageData, width, height);
 
 	//if there's an error, display it
 	if (error) std::cout << "encoder error " << error << ": " << lodepng_error_text(error) << std::endl;

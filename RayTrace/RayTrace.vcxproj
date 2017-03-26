@@ -113,6 +113,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>C:\SDKs\clewDist\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>clew.lib;SDL2.lib;SDL2_image.lib;SDL2_mixer.lib;SDL2_ttf.lib;SDL2main.lib;pugixml.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -129,12 +130,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Cube.cpp" />
     <ClCompile Include="input\Controller.cpp" />
     <ClCompile Include="input\InputManager.cpp" />
     <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="misc\DeltaTime.cpp" />
     <ClCompile Include="misc\Log.cpp" />
+    <ClCompile Include="misc\MemoryCounter.cpp" />
+    <ClCompile Include="misc\PerformanceCounter.cpp" />
     <ClCompile Include="misc\Random.cpp" />
     <ClCompile Include="misc\Utility.cpp" />
     <ClCompile Include="Platform.cpp" />
@@ -144,11 +148,14 @@
     <ClCompile Include="Texture.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Cube.h" />
     <ClInclude Include="input\Controller.h" />
     <ClInclude Include="input\InputManager.h" />
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="misc\DeltaTime.h" />
     <ClInclude Include="misc\Log.h" />
+    <ClInclude Include="misc\MemoryCounter.h" />
+    <ClInclude Include="misc\PerformanceCounter.h" />
     <ClInclude Include="misc\Random.h" />
     <ClInclude Include="misc\Utility.h" />
     <ClInclude Include="misc\Vec2.h" />

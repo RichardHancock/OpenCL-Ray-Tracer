@@ -31,7 +31,7 @@ extern "C"
 }
 #endif
 
-int main(int argc, char** argv)
+int main(int, char**)
 {
 	//Get Settings Dir
 	std::string settingsPath = SDL_GetPrefPath("RH", "GCP A2");
@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 	DeltaTime::init();
 
 	SDL_Renderer* renderer = platform->getRenderer();
-	SDL_RenderSetLogicalSize(renderer, 1280, 720);
+	SDL_RenderSetLogicalSize(renderer, 640, 480);
 
 	StateManager* stateManager = new StateManager((int)platform->getWindowSize().x, (int)platform->getWindowSize().y);
 
