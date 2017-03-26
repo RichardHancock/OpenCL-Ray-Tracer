@@ -36,6 +36,14 @@ namespace Utility
 	std::string intToString(int num);
 
 	/**
+	@brief Converts int to a string
+	Created because some compilers still don't support std::to_string()
+	@param num - Unsigned 64bit number to convert.
+	@return std::string - Converted string.
+	*/
+	std::string intToString(uint64_t num);
+
+	/**
 	 @brief Converts float to a string
 	 Created because some compilers still don't support std::to_string()
 
@@ -44,6 +52,17 @@ namespace Utility
 	 @return std::string - Converted string.
 	 */
 	std::string floatToString(float num);
+
+	/**
+	@brief Converts float to a string
+	Created because some compilers still don't support std::to_string()
+
+	@param num - Number to convert.
+	@param precision - How many numbers after the decimal point
+
+	@return std::string - Converted string.
+	*/
+	std::string floatToString(float num, unsigned int precision);
 
 	/**
 	 @brief Converts a Vector 2 to a string.

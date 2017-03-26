@@ -34,12 +34,12 @@ float normaliseFloat(float numberToNormalise, float max, float min)
 }
 
 //Ref: http://cs.lth.se/tomas_akenine-moller
-int intersectTri(double orig[3], double dir[3],
-	double vert0[3], double vert1[3], double vert2[3],
-	double *t, double *u, double *v)
+int intersectTri(float orig[3], float dir[3],
+	float vert0[3], float vert1[3], float vert2[3],
+	float *t, float *u, float *v)
 {
-	double edge1[3], edge2[3], tvec[3], pvec[3], qvec[3];
-	double det, inv_det;
+	float edge1[3], edge2[3], tvec[3], pvec[3], qvec[3];
+	float det, inv_det;
 
 	/* find vectors for two edges sharing vert0 */
 	SUB(edge1, vert1, vert0);
@@ -122,16 +122,16 @@ __kernel void rayTracer(__global int* output,
 	const unsigned int numOfTrianglesPerCube = 12;
 
 
-	double rayOriginConverted[3] = { ray.origin.x, ray.origin.y, ray.origin.z };
-	double rayDirConverted[3] = { ray.direction.x, ray.direction.y, ray.direction.z };
+	float rayOriginConverted[3] = { ray.origin.x, ray.origin.y, ray.origin.z };
+	float rayDirConverted[3] = { ray.direction.x, ray.direction.y, ray.direction.z };
 
-	double tri0[3];
-	double tri1[3];
-	double tri2[3];
+	float tri0[3];
+	float tri1[3];
+	float tri2[3];
 
-	double t = 0;
-	double u = 0;
-	double v = 0;
+	float t = 0;
+	float u = 0;
+	float v = 0;
 
 	float4 closestColour = (float4)(0.0f, 0.0f, 0.0f, 255.0f);
 	float closest = 300000.0f; //Set to high number so it will always be beaten
@@ -190,7 +190,7 @@ __kernel void rayTracer(__global int* output,
 	}
 	else
 	{
-		float colourScalar = 255.0f - (normaliseFloat(closest, 150.0f, 0.0f) * 255.0f);
+		float colourScalar = 255.0f - (normaliseFloat(closest, 180.0f, 0.0f) * 255.0f);
 		result = colourScalar * closestColour;
 		result.w = 255.0f;
 	}

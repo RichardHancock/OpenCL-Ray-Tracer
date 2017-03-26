@@ -1,6 +1,7 @@
 #pragma once
 
 #include "State.h"
+#include <SDL_ttf.h>
 
 #include "../Triangle.h"
 #include "../Ray.h"
@@ -35,6 +36,23 @@ public:
 	virtual void render();
 protected:
 
+	enum Mode
+	{
+		CPU,
+		OpenCL
+	};
+
+	//UI
+	TTF_Font* font;
+	SDL_Colour textColour;
+
+	Texture* mode;
+	Texture* modeSwitch;
+	Texture* timeTakenUI;
+	Texture* sceneNumberUI;
+	Texture* sceneSwitch;
+	Texture* pleaseWait;
+
 	PerformanceCounter timer;
 	uint64_t timeTaken;
 
@@ -46,14 +64,23 @@ protected:
 	const int numOfTrianglesPerCube = 12;
 	const int numOfPointsInTriangle = 3;
 
+	//Rays
 	glm::vec4 rayDir;
 	std::vector<glm::vec4> rayOrigins;
 
+	//Scene Objects
 	std::vector<glm::vec4> sphereOrigins;
 	std::vector<float> sphereRadius;
 	std::vector<glm::vec4> sphereColours;
 
 	std::vector<Cube> cubes;
+
+	//Ray Tracer Status flags
+	bool rayTracingInProgress;
+	bool start;
+	int currentScene;
+	bool sceneChange;
+	Mode currentMode;
 
 	//SceneCreation
 	void createScene1();
@@ -70,6 +97,7 @@ protected:
 
 	void executeRayTracerCPU();
 
+	void generateImageFromPixels();
 
 
 	//OpenCL Utility Functions
@@ -77,14 +105,18 @@ protected:
 
 	std::string clDeviceTypeToString(cl_device_type type);
 
+	const char *getErrorString(cl_int error);
+
+	void openCLInit();
+
 	//Debug Rendering to a PNG image
 	void encodePNG(const char* filename, std::vector<unsigned char>& imageData, unsigned width, unsigned height);
 
 	//Ray Tracer CPU Functions
 	int intersectTri(double orig[3], double dir[3], double vert0[3], double vert1[3], double vert2[3], double *t, double *u, double *v);
 	
-	float intersectSphere(glm::vec4& rayOrigin, glm::vec4& rayDir, float sphereRadius, glm::vec4& sphereOrigin);
+	float intersectSphere(glm::vec4& inRayOrigin, glm::vec4& inRayDirection, float inSphereRadius, glm::vec4& inSphereOrigin);
 
-	glm::vec4 collide(Ray& ray, std::vector<Cube> cubes, 
-		std::vector<float> sphereRadius, std::vector<glm::vec4> sphereOrigins, std::vector<glm::vec4> sphereColours);
+	glm::vec4 collide(Ray& ray, std::vector<Cube> inCubes, 
+		std::vector<float> inSphereRadius, std::vector<glm::vec4> inSphereOrigins, std::vector<glm::vec4> inSphereColours);
 };
