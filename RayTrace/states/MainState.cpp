@@ -137,8 +137,8 @@ MainState::MainState(StateManager * manager, Platform * platform)
 	{
 		std::cout << "OpenCL could not build program, errorcode: " << error << std::endl;
 
-		char log[2048];
-		if (clGetProgramBuildInfo(program, deviceID, CL_PROGRAM_BUILD_LOG, 2048, &log, NULL) != CL_SUCCESS)
+		char log[128000]; //128KB log, should be more than enough
+		if (clGetProgramBuildInfo(program, deviceID, CL_PROGRAM_BUILD_LOG, 128000, &log, NULL) != CL_SUCCESS)
 		{
 			std::cout << "OpenCL could not get build error log" << std::endl;
 			//return -1;
@@ -157,29 +157,8 @@ MainState::MainState(StateManager * manager, Platform * platform)
 		//return -1;
 	}
 
-
-	//Send in Array of ray origins and Di331
-	//cl_uchar
-	//size_t outputSize = (sizeof(cl_uchar) * 4) * (platform->getWindowSize().x * platform->getWindowSize().y);
-
-	//cl_mem outputBuffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY, outputSize, NULL, &error);
-	/*if (outputBuffer == NULL)
-	{
-		std::cout << "OpenCL could not create the out buffer, errorcode: " << error << std::endl;
-	}*/
-
-	//cl_mem 
-
-
-	//Create Tri
-	tri.a = glm::vec3(150, 0, 0);
-	tri.b = glm::vec3(0, 300, 0);
-	tri.c = glm::vec3(300, 300, 0);
-
 	//Dimensions * 4 Bytes (RGBA)
 	pixels.reserve((int)(platform->getWindowSize().x * platform->getWindowSize().y) * 4);
-
-
 }
 
 MainState::~MainState()
@@ -255,34 +234,62 @@ void MainState::update()
 
 
 		std::vector<glm::vec4> sphereOrigins;
-		sphereOrigins.reserve(1);
 		sphereOrigins.push_back(glm::vec4(300.0f, 250.0f, -85.0f, 1));
+		sphereOrigins.push_back(glm::vec4(500.0f, 250.0f, -85.0f, 1));
 		
 		std::vector<float> sphereRadius;
-		sphereRadius.reserve(1);
 		sphereRadius.push_back(50);
+		sphereRadius.push_back(30);
 
-		std::vector<glm::vec3> sphereColours;
-		sphereColours.reserve(1);
-		sphereColours.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
+		std::vector<glm::vec4> sphereColours;
+		sphereColours.push_back(glm::vec4(0.0f, 1.0f, 1.0f, 255.0f));
+		sphereColours.push_back(glm::vec4(1.0f, 0.0f, 1.0f, 255.0f));
 
 		std::vector<Cube> cubes;
-		Cube cube1(glm::vec3(1.0f, 0.0f, 1.0f));
+		Cube cube1(glm::vec4(1.0f, 1.0f, 0.0f, 255.0f));
 		cube1.scale(glm::vec3(40.0f));
 		cube1.rotate(glm::vec3(0.0f, 0.0f, Utility::convertAngleToRadian(30.0f)));
 		cube1.rotate(glm::vec3(0.0f, Utility::convertAngleToRadian(30.0f), 0.0f));
 		cube1.translate(glm::vec3(70.0f, 60.0f, -60.0f));
 		cubes.push_back(cube1);
 
-		Cube cube2(glm::vec3(1.0f, 1.0f, 0.0f));
+		Cube cube2(glm::vec4(0.0f, 1.0f, 1.0f, 255.0f));
 		cube2.scale(glm::vec3(30.0f));
 		cube2.rotate(glm::vec3(0.0f, 0.0f, Utility::convertAngleToRadian(80.0f)));
 		cube2.rotate(glm::vec3(0.0f, Utility::convertAngleToRadian(250.0f), 0.0f));
-		cube2.translate(glm::vec3(150.0f, 60.0f, -60.0f));
+		cube2.translate(glm::vec3(150.0f, 60.0f, -70.0f));
 		cubes.push_back(cube2);
-		
 
-		/*
+		Cube cube3(glm::vec4(0.0f, 0.0f, 1.0f, 255.0f));
+		cube3.scale(glm::vec3(10.0f));
+		cube3.rotate(glm::vec3(0.0f, 0.0f, Utility::convertAngleToRadian(160.0f)));
+		cube3.rotate(glm::vec3(Utility::convertAngleToRadian(210.0f), 0.0f, 0.0f));
+		cube3.translate(glm::vec3(150.0f, 400.0f, -40.0f));
+		cubes.push_back(cube3);
+
+		Cube cube4(glm::vec4(1.0f, 0.0f, 0.0f, 255.0f));
+		cube4.scale(glm::vec3(50.0f));
+		cube4.rotate(glm::vec3(0.0f, 0.0f, Utility::convertAngleToRadian(80.0f)));
+		cube4.rotate(glm::vec3(0.0f, Utility::convertAngleToRadian(250.0f), 0.0f));
+		cube4.translate(glm::vec3(450.0f, 200.0f, -80.0f));
+		cubes.push_back(cube4);
+		
+		std::vector<glm::vec4> cubeVertices;
+		std::vector<glm::vec4> cubeColours;
+		for (auto& cube : cubes)
+		{
+			auto tempVertices = cube.getTriangles();
+
+			cubeVertices.insert(cubeVertices.end(), tempVertices.begin(), tempVertices.end());
+			
+			cubeColours.push_back(cube.getColour());
+		}
+
+		int numCubes = cubes.size();
+		int numSpheres = sphereOrigins.size();
+
+
+		
 		//OpenCL
 		cl_int errorCode;
 
@@ -320,6 +327,39 @@ void MainState::update()
 			std::cout << "OpenCL could not create the sphere radius buffer, errorcode: " << errorCode << std::endl;
 		}
 
+		cl_mem sphereColoursBuffer = clCreateBuffer(
+			context,
+			CL_MEM_READ_ONLY,
+			sizeof(glm::vec4) * sphereColours.size(),
+			NULL, &errorCode
+		);
+		if (sphereColoursBuffer == NULL)
+		{
+			std::cout << "OpenCL could not create the sphere colours buffer, errorcode: " << errorCode << std::endl;
+		}
+
+		cl_mem cubeVerticesBuffer = clCreateBuffer(
+			context,
+			CL_MEM_READ_ONLY,
+			sizeof(glm::vec4) * cubeVertices.size(),
+			NULL, &errorCode
+		);
+		if (cubeVerticesBuffer == NULL)
+		{
+			std::cout << "OpenCL could not create the sphere colours buffer, errorcode: " << errorCode << std::endl;
+		}
+
+		cl_mem cubeColoursBuffer = clCreateBuffer(
+			context,
+			CL_MEM_READ_ONLY,
+			sizeof(glm::vec4) * cubeColours.size(),
+			NULL, &errorCode
+		);
+		if (cubeColoursBuffer == NULL)
+		{
+			std::cout << "OpenCL could not create the cube colours buffer, errorcode: " << errorCode << std::endl;
+		}
+
 
 		cl_mem rayOriginsBuffer = clCreateBuffer(
 			context,
@@ -334,12 +374,18 @@ void MainState::update()
 		
 		//Setting Kernel Args
 		clSetKernelArg(kernel, 0, sizeof(outputBuffer), (void*) &outputBuffer);
-		clSetKernelArg(kernel, 1, sizeof(sphereOriginsBuffer), (void*) &sphereOriginsBuffer);
-		clSetKernelArg(kernel, 2, sizeof(sphereRadiusBuffer), (void*) &sphereRadiusBuffer);
-		clSetKernelArg(kernel, 3, sizeof(rayOriginsBuffer), (void*) &rayOriginsBuffer);
-		clSetKernelArg(kernel, 4, sizeof(glm::vec4), (void*) &rayDir);
+		clSetKernelArg(kernel, 1, sizeof(int), (void*) &numSpheres);
+		clSetKernelArg(kernel, 2, sizeof(sphereOriginsBuffer), (void*) &sphereOriginsBuffer);
+		clSetKernelArg(kernel, 3, sizeof(sphereRadiusBuffer), (void*) &sphereRadiusBuffer);
+		clSetKernelArg(kernel, 4, sizeof(sphereColoursBuffer), (void*) &sphereColoursBuffer);
+		clSetKernelArg(kernel, 5, sizeof(int), (void*) &numCubes);
+		clSetKernelArg(kernel, 6, sizeof(cubeVerticesBuffer), (void*) &cubeVerticesBuffer);
+		clSetKernelArg(kernel, 7, sizeof(cubeColoursBuffer), (void*) &cubeColoursBuffer);
+		clSetKernelArg(kernel, 8, sizeof(rayOriginsBuffer), (void*) &rayOriginsBuffer);
+		clSetKernelArg(kernel, 9, sizeof(glm::vec4), (void*) &rayDir);
 
 		//Passing Data to Buffers
+		// SPHERES
 		errorCode = clEnqueueWriteBuffer(
 			cmdQueue,
 			sphereOriginsBuffer,
@@ -372,6 +418,56 @@ void MainState::update()
 			std::cout << "OpenCL could not write to the sphereRadiusBuffer, errorcode: " << errorCode << std::endl;
 		}
 		
+		errorCode = clEnqueueWriteBuffer(
+			cmdQueue,
+			sphereColoursBuffer,
+			CL_TRUE,
+			0,
+			sizeof(glm::vec4) * sphereColours.size(),
+			&sphereColours[0],
+			0,
+			NULL,
+			NULL
+		);
+		if (errorCode != CL_SUCCESS)
+		{
+			std::cout << "OpenCL could not write to the sphereColoursBuffer, errorcode: " << errorCode << std::endl;
+		}
+
+		//CUBES
+		errorCode = clEnqueueWriteBuffer(
+			cmdQueue,
+			cubeVerticesBuffer,
+			CL_TRUE,
+			0,
+			sizeof(glm::vec4) * cubeVertices.size(),
+			&cubeVertices[0],
+			0,
+			NULL,
+			NULL
+		);
+		if (errorCode != CL_SUCCESS)
+		{
+			std::cout << "OpenCL could not write to the cubeVerticesBuffer, errorcode: " << errorCode << std::endl;
+		}
+
+		errorCode = clEnqueueWriteBuffer(
+			cmdQueue,
+			cubeColoursBuffer,
+			CL_TRUE,
+			0,
+			sizeof(glm::vec4) * cubeColours.size(),
+			&cubeColours[0],
+			0,
+			NULL,
+			NULL
+		);
+		if (errorCode != CL_SUCCESS)
+		{
+			std::cout << "OpenCL could not write to the cubeColoursBuffer, errorcode: " << errorCode << std::endl;
+		}
+
+		//RAYS
 		errorCode = clEnqueueWriteBuffer(
 			cmdQueue,
 			rayOriginsBuffer,
@@ -424,8 +520,8 @@ void MainState::update()
 		}
 
 		pixels.assign(ptr, ptr + (pixelCount * 4));
-		*/
 		
+		/*
 		for (unsigned int y = 0; y < platform->getWindowSize().y; y++)
 		{
 			for (unsigned int x = 0; x < platform->getWindowSize().x; x++)
@@ -440,12 +536,7 @@ void MainState::update()
 				
 				resultColour = collide(ray, cubes, sphereRadius, sphereOrigins, sphereColours);
 
-				/*
-				if (result < 0)
-				{
-					result = 0;
-				}
-				*/
+				
 				pixels.push_back((unsigned char)resultColour.r);
 				pixels.push_back((unsigned char)resultColour.g);
 				pixels.push_back((unsigned char)resultColour.b);
@@ -453,7 +544,7 @@ void MainState::update()
 			}
 		}
 
-		std::cout << "CPU Ray Trace Finished (Timer Stopped), Converting data to pixels";
+		std::cout << "CPU Ray Trace Finished (Timer Stopped), Converting data to pixels";*/
 		//encodePNG("ray.png", pixels, platform->getWindowSize().x, platform->getWindowSize().y);
 	}
 	
@@ -615,7 +706,7 @@ float MainState::intersectSphere(glm::vec4& rayOrigin, glm::vec4& rayDir, float 
 
 //Quick function to convert params to be suitable for the intersect code
 glm::vec4 MainState::collide(Ray& ray, std::vector<Cube> cubes, 
-	std::vector<float> sphereRadius, std::vector<glm::vec4> sphereOrigins, std::vector<glm::vec3> sphereColours)
+	std::vector<float> sphereRadius, std::vector<glm::vec4> sphereOrigins, std::vector<glm::vec4> sphereColours)
 {
 	double rayOrigin[3]{ ray.origin.x, ray.origin.y, ray.origin.z };
 	double rayDir[3]{ ray.direction.x, ray.direction.y, ray.direction.z };
@@ -628,7 +719,7 @@ glm::vec4 MainState::collide(Ray& ray, std::vector<Cube> cubes,
 	double u = 0;
 	double v = 0;
 
-	glm::vec3 closestColour = glm::vec3(0, 0, 0);
+	glm::vec4 closestColour = glm::vec4(0, 0, 0, 255.0f);
 	float closest = 300000.0f; //Set to high number so it will always be beaten
 
 	//Process Cubes
@@ -681,12 +772,14 @@ glm::vec4 MainState::collide(Ray& ray, std::vector<Cube> cubes,
 	//Check any object is closer than the default setting, if not return black colour as no intersects occurred
 	if (closest == 300000.0f)
 	{
-		return glm::vec4(closestColour, 255.0f);
+		return closestColour;
 	}
 	else
 	{
 		float colourScalar = 255.0f - (Utility::normaliseFloat(closest, 150.0f, 0.0f) * 255.0f);
-		return glm::vec4(colourScalar * closestColour, 255.0f);
+		closestColour = colourScalar * closestColour;
+		closestColour.w = 255.0f; //Reset to full on alpha channel
+		return closestColour;
 	}
 }
 

@@ -10,7 +10,7 @@
 #define SUB(dest,v1,v2) \
           dest[0]=v1[0]-v2[0]; \
           dest[1]=v1[1]-v2[1]; \
-          dest[2]=v1[2]-v2[2]; 
+          dest[2]=v1[2]-v2[2];
 
 struct Ray
 {
@@ -77,57 +77,126 @@ int intersectTri(double orig[3], double dir[3],
 	return 1;
 }
 
-__kernel void rayTracer(__global int* output, __global float4* sphereOrigins, __global float* sphereRadius, __global float4* rayOrigins, float4 rayDir, __global float4* cubeVertices)
+float intersectSphere(float4 rayOrigin, float4 rayDir, float sphereRadius, float4 sphereOrigin)
 {
-	int result;
+	//Light Dir
+	float4 L = sphereOrigin - rayOrigin;
+	float tca = dot(L, rayDir);
+
+	if (tca < 0)
+	{
+		return 0.0f;
+	}
+
+	float distanceSquared = dot(L, L) - tca * tca;
+	float radiusSquared = sphereRadius * sphereRadius;
+
+	if (distanceSquared > radiusSquared)
+	{
+		return 0.0f;
+	}
+
+	float thc = sqrt((radiusSquared) - distanceSquared);
+
+	//Calculate sphere entry and exit distance
+	float t0 = tca - thc;
+	float t1 = tca + thc;
+
+	//return distance(t0, t1);
+	return t0;
+
+	//distance = normaliseFloat(distance, s.radius + s.radius, 0.0f) * 255.0f;
+}
+
+__kernel void rayTracer(__global int* output,
+	int numSpheres, __global float4* sphereOrigins, __global float* sphereRadius, __global float4* sphereColours,
+	int numCubes, __global float4* cubeVertices, __global float4* cubeColours,
+	__global float4* rayOrigins, float4 rayDir)
+{
+	float4 result = (float4)(0.0f,0.0f,0.0f,255.0f);
 
 	struct Ray ray;
 	ray.origin = rayOrigins[get_global_id(0)];
  	ray.direction = rayDir;
 
-	struct Sphere s;
-	s.origin = sphereOrigins[0];
-	s.radius = sphereRadius[0];
+	const unsigned int numOfTrianglesPerCube = 12;
 
 
-	//LightDir
-	float4 L = s.origin - ray.origin;
+	double rayOriginConverted[3] = { ray.origin.x, ray.origin.y, ray.origin.z };
+	double rayDirConverted[3] = { ray.direction.x, ray.direction.y, ray.direction.z };
 
-	//Angle between the ray dir and light dir
-	float tca = dot(L, ray.direction);
+	double tri0[3];
+	double tri1[3];
+	double tri2[3];
 
-	if (tca < 0)
+	double t = 0;
+	double u = 0;
+	double v = 0;
+
+	float4 closestColour = (float4)(0.0f, 0.0f, 0.0f, 255.0f);
+	float closest = 300000.0f; //Set to high number so it will always be beaten
+
+	//Process Cubes
+	for (unsigned int cubeIndex = 0; cubeIndex < numCubes; cubeIndex++)
 	{
-		result = 0;
-		return;
+		//Due to all cubes triangles being in the same array,
+		//I offset the triangle indexes by the current cube index
+		unsigned int triOffset = cubeIndex * numOfTrianglesPerCube * 3;
+
+		for (unsigned int triIndex = 0; triIndex < numOfTrianglesPerCube * 3; triIndex += 3)
+		{
+			tri0[0] = cubeVertices[triOffset + triIndex].x;
+			tri0[1] = cubeVertices[triOffset + triIndex].y;
+			tri0[2] = cubeVertices[triOffset + triIndex].z;
+
+			tri1[0] = cubeVertices[triOffset + triIndex + 1].x;
+			tri1[1] = cubeVertices[triOffset + triIndex + 1].y;
+			tri1[2] = cubeVertices[triOffset + triIndex + 1].z;
+
+			tri2[0] = cubeVertices[triOffset + triIndex + 2].x;
+			tri2[1] = cubeVertices[triOffset + triIndex + 2].y;
+			tri2[2] = cubeVertices[triOffset + triIndex + 2].z;
+
+			if (intersectTri(rayOriginConverted, rayDirConverted, tri0, tri1, tri2, &t, &u, &v) == 1)
+			{
+				if ((float)t < closest)
+				{
+					closest = (float)t;
+					closestColour = cubeColours[cubeIndex];
+				}
+			}
+		}
 	}
 
-	float radiusSquared = s.radius * s.radius;
-
-	float distanceSquared = dot(L, L) - tca * tca;
-	if (distanceSquared > radiusSquared)
+	//Process Spheres
+	for (unsigned int sphereIndex = 0; sphereIndex < numSpheres; sphereIndex++)
 	{
-		result = 0;
-		return;
+		float distance = intersectSphere(ray.origin, ray.direction, sphereRadius[sphereIndex], sphereOrigins[sphereIndex]);
+
+		if (distance == 0.0f)
+			continue;
+
+		if (distance < closest)
+		{
+			closest = distance;
+			closestColour = sphereColours[sphereIndex];
+		}
 	}
 
-	float thc = sqrt(radiusSquared - distanceSquared);
-	float t0 = tca - thc;
-	float t1 = tca + thc;
+	//Check any object is closer than the default setting, if not return black colour as no intersects occurred
+	if (closest == 300000.0f)
+	{
+		result = closestColour;
+	}
+	else
+	{
+		float colourScalar = 255.0f - (normaliseFloat(closest, 150.0f, 0.0f) * 255.0f);
+		result = colourScalar * closestColour;
+		result.w = 255.0f;
+	}
 
-	float distanceBetween = distance(t0, t1);
-
-
-
-	distanceBetween = normaliseFloat(distanceBetween, s.radius + s.radius, 0.0f) * 255.0f;
-
-	result = (int)(distanceBetween);
-
-	if (result < 0)
-		result = 0;
-
-	output[(get_global_id(0) * 4)] = result;
-	output[(get_global_id(0) * 4) + 1] = 0;
-	output[(get_global_id(0) * 4) + 2] = 0;
-	output[(get_global_id(0) * 4) + 3] = 255;
+	output[(get_global_id(0) * 4)	 ] = result.x;
+	output[(get_global_id(0) * 4) + 1] = result.y;
+	output[(get_global_id(0) * 4) + 2] = result.z;
+	output[(get_global_id(0) * 4) + 3] = result.w;
 }

@@ -3,7 +3,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include <iostream>
 
-Cube::Cube(glm::vec3 newColour)
+Cube::Cube(glm::vec4& newColour)
 	: colour(newColour)
 {
 	triangles.reserve(36);

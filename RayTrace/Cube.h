@@ -7,7 +7,7 @@ class Cube
 {
 public:
 	
-	Cube(glm::vec3 colour);
+	Cube(glm::vec4& colour);
 
 	std::vector<glm::vec4> getTriangles();
 
@@ -17,10 +17,10 @@ public:
 
 	void translate(glm::vec3 newTranslation);
 
-	glm::vec3 getColour() { return colour; }
+	glm::vec4 getColour() { return colour; }
 private:
 
 	std::vector<glm::vec4> triangles;
 
-	glm::vec3 colour;
+	glm::vec4 colour;
 };

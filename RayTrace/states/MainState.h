@@ -34,10 +34,12 @@ public:
 	virtual void render();
 protected:
 
-	Triangle tri;
 	std::vector<int> pixels;
 
 	Texture* image;
+
+	const int numOfTrianglesPerCube = 12;
+	const int numOfPointsInTriangle = 3;
 
 	//OpenCL
 	cl_program program;
@@ -56,5 +58,5 @@ protected:
 	float intersectSphere(glm::vec4& rayOrigin, glm::vec4& rayDir, float sphereRadius, glm::vec4& sphereOrigin);
 
 	glm::vec4 collide(Ray& ray, std::vector<Cube> cubes, 
-		std::vector<float> sphereRadius, std::vector<glm::vec4> sphereOrigins, std::vector<glm::vec3> sphereColours);
+		std::vector<float> sphereRadius, std::vector<glm::vec4> sphereOrigins, std::vector<glm::vec4> sphereColours);
 };
