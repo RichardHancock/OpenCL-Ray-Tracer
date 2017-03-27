@@ -163,12 +163,10 @@
     <ClInclude Include="misc\Vec3.h" />
     <ClInclude Include="Platform.h" />
     <ClInclude Include="Ray.h" />
-    <ClInclude Include="Sphere.h" />
     <ClInclude Include="states\MainState.h" />
     <ClInclude Include="states\State.h" />
     <ClInclude Include="states\StateManager.h" />
     <ClInclude Include="Texture.h" />
-    <ClInclude Include="Triangle.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

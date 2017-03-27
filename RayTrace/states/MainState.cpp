@@ -6,7 +6,6 @@
 #include "../glm/gtc/type_ptr.hpp"
 
 #include "../lodepng.h"
-#include "../Sphere.h"
 #include "../misc/Utility.h"
 #include "../misc/Random.h"
 
@@ -162,13 +161,21 @@ void MainState::update()
 			currentScene = 1;
 
 
-		std::string sceneNumberStr = "Scene" + Utility::intToString(currentScene);
+		std::string sceneNumberStr = "Scene " + Utility::intToString(currentScene);
 		delete sceneNumberUI;
 		sceneNumberUI = new Texture(TTF_RenderText_Blended(font, sceneNumberStr.c_str(), textColour), platform->getRenderer());
+
+		std::cout << "Scene changed to " << sceneNumberStr << std::endl;
 
 		sceneChange = true;
 		start = true;
 	}
+
+	if (InputManager::wasKeyReleased(SDLK_SPACE) && !start && !rayTracingInProgress)
+	{
+		start = true;
+	}
+
 
 	if (rayTracingInProgress)
 	{
@@ -340,10 +347,11 @@ glm::vec4 MainState::collide(Ray& inRay, std::vector<Cube> inCubes,
 	//Process Cubes
 	for (auto cube : cubes)
 	{
-		std::vector<glm::vec4> tris = cube.getTriangles();
+		std::vector<glm::vec4> tris = cube.getTriangles(); //Get all tri verts from cube
 
 		for (unsigned int triIndex = 0; triIndex < tris.size(); triIndex += 3)
 		{
+			//Set Triangles into array format for intersect test
 			tri0[0] = tris[triIndex].x;
 			tri0[1] = tris[triIndex].y;
 			tri0[2] = tris[triIndex].z;
@@ -356,6 +364,7 @@ glm::vec4 MainState::collide(Ray& inRay, std::vector<Cube> inCubes,
 			tri2[1] = tris[triIndex + 2].y;
 			tri2[2] = tris[triIndex + 2].z;
 
+			//If ray intersects triangle set this triangle as the closest
 			if (intersectTri(rayOrigin, rayDirection, tri0, tri1, tri2, &t, &u, &v) == 1)
 			{
 				if ((float)t < closest)
@@ -877,7 +886,7 @@ void MainState::executeRayTracerOpenCL()
 		&errorCode);
 	if (errorCode != CL_SUCCESS)
 	{
-		std::cout << "OpenCL could not enqueue a execute kernel command, errorcode: " << getErrorString(errorCode) << std::endl;
+		std::cout << "OpenCL could not enqueue a execute map buffer command, errorcode: " << getErrorString(errorCode) << std::endl;
 	}
 
 
@@ -896,6 +905,21 @@ void MainState::executeRayTracerOpenCL()
 
 	//Convert array to vector for simplicity;
 	pixels.assign(ptr, ptr + (pixelCount * 4));
+	
+	//Clear raw pixel ptr 
+	errorCode = clEnqueueUnmapMemObject(
+		cmdQueue,
+		outputBuffer,
+		ptr,
+		0,
+		NULL,
+		NULL
+	);
+	if (errorCode != CL_SUCCESS)
+	{
+		std::cout << "OpenCL could not enqueue a execute um-map buffer command, errorcode: " << getErrorString(errorCode) << std::endl;
+	}
+
 
 	//Clear OpenCL Memory for this scene
 	clFlush(cmdQueue);
@@ -1174,7 +1198,8 @@ void MainState::openCLInit()
 	std::cout << "Number of OpenCL Platforms: " << num_platforms << std::endl;
 
 
-	cl_device_id deviceID;
+	cl_device_id deviceID = nullptr;
+	bool gpuFound = false;
 
 	for (unsigned int platformIndex = 0; platformIndex < num_platforms; platformIndex++)
 	{
@@ -1213,6 +1238,14 @@ void MainState::openCLInit()
 			clGetDeviceInfo(devices[deviceIndex], CL_DEVICE_TYPE, sizeof(cl_device_type), &deviceType, NULL);
 			std::cout << " -- Type: " << clDeviceTypeToString(deviceType) << std::endl;
 
+			//If the device is a GPU and we haven't already found one, save it
+			if (deviceType & CL_DEVICE_TYPE_GPU && !gpuFound)
+			{
+				deviceID = devices[deviceIndex];
+				gpuFound = true;
+			}
+
+
 			clGetDeviceInfo(devices[deviceIndex], CL_DEVICE_AVAILABLE, sizeof(cl_bool), &boolean, NULL);
 			std::cout << " -- Is Available: " << boolean << std::endl;
 
@@ -1226,10 +1259,18 @@ void MainState::openCLInit()
 			std::cout << " -- Max Clock Frequency: " << uInt << "MHz" << std::endl << std::endl;
 		}
 
-		if (platformIndex == 0)
+		//If no GPU is found save the first available device as a backup
+		if (platformIndex == 0 && !gpuFound)
+		{
 			deviceID = devices[0];
-
+		}
 	}
+
+	if (!gpuFound)
+	{
+		std::cout << "No GPU Found, OpenCL will attempt fallback to device 0" << std::endl;
+	}
+		
 
 	context = clCreateContext(NULL, 1, &deviceID, NULL, NULL, &error);
 
